@@ -70,7 +70,7 @@ module DropboxDeployment
         @@logger.debug('We are in debug mode')
       end
 
-      dropbox_client = DropboxApi::Client.new
+      dropbox_client = DropboxApi::Client.new(ENV[ options['env'] ])
 
       if not options.key? 'max_days'
         options['max_days'] = 0
@@ -155,7 +155,7 @@ module DropboxDeployment
       @@logger.debug('Dropbox Path: ' + dropbox_path)
 
       begin
-        if dropbox_client.search(options['search'], dropbox_path).matches.size
+        if 0 < dropbox_client.search(options['search'], dropbox_path).matches.size
           @@logger.debug('File found')
 
           return 0
