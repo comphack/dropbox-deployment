@@ -5,10 +5,17 @@ require 'optparse'
 
 options = {}
 optparse = OptionParser.new do |opts|
-  options["debug"] = false
+  options['download'] = false
 
   opts.on("-d", "--debug", "Turn on debugging") do |debug|
     options["debug"] = true
+  end
+
+  opts.on("-f", "--fetch-path [DROPBOX_PATH]", "The path to the file in Dropbox to fetch/download") do |dropbox_path|
+    if dropbox_path.is_a? String
+      options["dropbox_path"] = dropbox_path
+    end
+    options['download'] = true
   end
 
   opts.on("-u", "--upload-path DROPBOX_PATH", "The path to the folder on Dropbox") do |dropbox_path|
@@ -17,6 +24,22 @@ optparse = OptionParser.new do |opts|
 
   opts.on("-a", "--artifacts-path ARTIFACTS_PATH", "Local file or directory to upload to Dropbox") do |artifacts_path|
     options["artifacts_path"] = artifacts_path
+  end
+
+  opts.on("-p", "--max-files MAX_FILES", "Maximum number of files to keep in Dropbox folder") do |max_files|
+    options['max_files'] = max_files
+  end
+
+  opts.on("-t", "--max-days MAX_DAYS", "Maximum number of days to keep a file in the Dropbox folder") do |max_days|
+    options['max_days'] = max_days
+  end
+
+  opts.on("-s", "--search PATH", "Uses exit code to determine if a file exists.") do |path|
+    options['search'] = path
+  end
+
+  opts.on("-e", "--env VAR", "Name of the environment variable for authentication.") do |varname|
+    options['env'] = varname
   end
 
   opts.on("-h", "--help", "Display this screen") do
@@ -28,4 +51,12 @@ end
 optparse.parse!
 
 deployer = DropboxDeployment::Deployer.new
-deployer.deploy(options)
+
+if options['download']
+  deployer.download(options)
+elsif options.key? 'search'
+  exit(deployer.exists(options))
+else
+  deployer.deploy(options)
+  deployer.prune(options)
+end

@@ -40,7 +40,7 @@ module DropboxDeployment
       end
     end
 
-    def deploy(options = {})
+    def setup(options = {})
       config = {}
 
       if File.file?('dropbox-deployment.yml')
@@ -56,9 +56,12 @@ module DropboxDeployment
       artifact_path = options.fetch('artifacts_path')
       dropbox_path = options.fetch('dropbox_path')
 
+      if not options.key? 'env'
+        options['env'] = 'DROPBOX_OAUTH_BEARER'
+      end
 
-      if ENV['DROPBOX_OAUTH_BEARER'].nil?
-        puts "\nYou must have an environment variable of `DROPBOX_OAUTH_BEARER` in order to deploy to Dropbox\n\n"
+      if ENV[ options['env'] ].nil?
+        puts "\nYou must have an environment variable of `" + options['env'] + "` in order to deploy to Dropbox\n\n"
         exit(1)
       end
 
@@ -68,6 +71,68 @@ module DropboxDeployment
       end
 
       dropbox_client = DropboxApi::Client.new
+
+      if not options.key? 'max_days'
+        options['max_days'] = 0
+      end
+
+      if not options.key? 'max_files'
+        options['max_files'] = 0
+      end
+
+      if not dropbox_path.start_with? '/'
+        dropbox_path = '/' + dropbox_path
+      end
+
+      return options, artifact_path, dropbox_path, dropbox_client
+    end
+
+    def download(options = {})
+      options, artifact_path, dropbox_path, dropbox_client = setup options
+
+      # Download a file
+      @@logger.debug('Artifact Path: ' + artifact_path)
+      @@logger.debug('Dropbox Path: ' + dropbox_path)
+
+      out = File.open(artifact_path, 'wb')
+      dropbox_client.download dropbox_path do |chunk|
+        out.write chunk
+      end
+    end
+
+    def prune(options = {})
+      options, artifact_path, dropbox_path, dropbox_client = setup options
+
+      # Files older than 1 day
+      pruneDays = options['max_days']
+      pruneTime = Time.now - (60 * 60 * 24 * pruneDays)
+      maxFiles = options['max_files']
+
+      files = dropbox_client.list_folder(dropbox_path, {'recursive': true}).entries
+      files.delete_if { |x| not x.is_a? DropboxApi::Metadata::File }
+      files.sort_by &:server_modified
+
+      # First prune files over the max number (oldest first)
+      if files.size > maxFiles and 0 < maxFiles
+        files[0..maxFiles].each do |f|
+          dropbox_client.delete(f.path_display)
+        end
+
+        files = files[(maxFiles+1)..files.size]
+      end
+
+      # Now prune any files older then requested
+      if 0 < pruneDays
+        files.each do |f|
+          if f.server_modified < pruneTime
+            dropbox_client.delete(f.path_display)
+          end
+        end
+      end
+    end
+
+    def deploy(options = {})
+      options, artifact_path, dropbox_path, dropbox_client = setup options
 
       # Upload all files
       @@logger.debug('Artifact Path: ' + artifact_path)
@@ -81,6 +146,29 @@ module DropboxDeployment
         upload_file(dropbox_client, artifact_file, dropbox_path)
       end
       @@logger.debug('Uploading complete')
+    end
+
+    def exists(options = {})
+      options, artifact_path, dropbox_path, dropbox_client = setup options
+
+      @@logger.debug('Search Path: ' + options['search'])
+      @@logger.debug('Dropbox Path: ' + dropbox_path)
+
+      begin
+        if dropbox_client.search(options['search'], dropbox_path).matches.size
+          @@logger.debug('File found')
+
+          return 0
+        else
+          @@logger.debug('File not found')
+
+          return -1
+        end
+      rescue
+        @@logger.debug('File not found')
+
+        return -1
+      end
     end
   end
 end
