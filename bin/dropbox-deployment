@@ -27,11 +27,11 @@ optparse = OptionParser.new do |opts|
   end
 
   opts.on("-p", "--max-files MAX_FILES", "Maximum number of files to keep in Dropbox folder") do |max_files|
-    options['max_files'] = max_files
+    options['max_files'] = max_files.to_i
   end
 
   opts.on("-t", "--max-days MAX_DAYS", "Maximum number of days to keep a file in the Dropbox folder") do |max_days|
-    options['max_days'] = max_days
+    options['max_days'] = max_days.to_i
   end
 
   opts.on("-s", "--search PATH", "Uses exit code to determine if a file exists.") do |path|
