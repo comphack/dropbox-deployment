@@ -19,7 +19,7 @@ module DropboxDeployment
       file_name = File.basename(file)
       @@logger.debug('Uploading ' + file_name + ' to ' + dropbox_path + '/' + file_name)
       File.open(file) do |io|
-        dropbox_client.upload dropbox_path + '/' + file_name, io, mode: :overwrite
+        dropbox_client.upload_by_chunks dropbox_path + '/' + file_name, io, mode: :overwrite
       end
     end
 
