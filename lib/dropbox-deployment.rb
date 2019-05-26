@@ -112,19 +112,29 @@ module DropboxDeployment
       files.delete_if { |x| not x.is_a? DropboxApi::Metadata::File }
       files.sort_by &:server_modified
 
+      @@logger.debug('Number of files: %d' % [files.size])
+
       # First prune files over the max number (oldest first)
       if files.size > maxFiles and 0 < maxFiles
-        files[0..(files.size - maxFiles)].each do |f|
+        files[0..(files.size - maxFiles - 1)].each do |f|
+          @@logger.debug('Delete: ' + f.path_display)
           dropbox_client.delete(f.path_display)
         end
 
-        files = files[(files.size - maxFiles + 1)..files.size]
+        files = files[(files.size - maxFiles)..files.size]
+
+        files.each do |f|
+          @@logger.debug('Keep: ' + f.path_display)
+        end
       end
+
+      @@logger.debug('Looking at older files')
 
       # Now prune any files older then requested
       if 0 < pruneDays
         files.each do |f|
           if f.server_modified < pruneTime
+            @@logger.debug('Delete: ' + f.path_display)
             dropbox_client.delete(f.path_display)
           end
         end
