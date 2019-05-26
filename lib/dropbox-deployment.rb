@@ -114,11 +114,11 @@ module DropboxDeployment
 
       # First prune files over the max number (oldest first)
       if files.size > maxFiles and 0 < maxFiles
-        files[0..maxFiles].each do |f|
+        files[0..(files.size - maxFiles)].each do |f|
           dropbox_client.delete(f.path_display)
         end
 
-        files = files[(maxFiles+1)..files.size]
+        files = files[(files.size - maxFiles + 1)..files.size]
       end
 
       # Now prune any files older then requested
