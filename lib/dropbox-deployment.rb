@@ -161,11 +161,22 @@ module DropboxDeployment
     def exists(options = {})
       options, artifact_path, dropbox_path, dropbox_client = setup options
 
-      @@logger.debug('Search Path: ' + options['search'])
+      search_path = options['search']
+
+      @@logger.debug('Search Path: ' + search_path)
       @@logger.debug('Dropbox Path: ' + dropbox_path)
 
       begin
-        if 0 < dropbox_client.search(options['search'], dropbox_path).matches.size
+        found = false
+
+        dropbox_client.search(search_path, dropbox_path).matches.each do |f|
+          if f.resource.name == search_path
+            found = true
+            break
+          end
+        end
+
+        if found
           @@logger.debug('File found')
 
           return 0
